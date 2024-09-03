@@ -223,7 +223,7 @@ $(document).ready(function () {
 
   function foo_test_branch_data() {
     console.log('foo_test_branch_data');
-    populate_table(test_branch_data);
+    populate_table(ci_nightly_data);
     set_datatable_options();
   }
 
