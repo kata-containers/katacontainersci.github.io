@@ -1,6 +1,6 @@
 $(document).ready(function () {
 
-  var icons_path = 'jenkins-weather-icons';
+  var icons_path = 'img';
   var icons = [
       'sunny.svg',
       'partially-sunny.svg',
