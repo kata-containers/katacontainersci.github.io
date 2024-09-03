@@ -1,6 +1,8 @@
 name: Fetch CI Nightly Data
 run-name: Fetch CI Nightly Data
-on: [push]
+on:
+  schedule:
+    - cron: '0 * * * *'
 jobs:
   fetch-and-commit-data:
     runs-on: ubuntu-22.04
