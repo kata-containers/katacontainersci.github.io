@@ -9,14 +9,14 @@ $(document).ready(function () {
         'stormy.svg',
     ];
 
+    // Get the weather image for some stat map of fails, skips, and runs. For
+    // simplicity, skips are considered fails. Failure rates for the icons are:
+    //   stormy: .8 <= x
+    //   rainy:  .6 <= x < .8
+    //   cloudy: .4 <= x < .6
+    //   partially-sunny: .2 <= x < .4
+    //   sunny:  x < .2
     function get_weather_icon(stat) {
-        // for simplicity, skips are considered fails here
-        // failure rates for the icons are:
-        //   stormy: .8 <= x
-        //   rainy:  .6 <= x < .8
-        //   cloudy: .4 <= x < .6
-        //   partially-sunny: .2 <= x < .4
-        //   sunny:  x < .2
         var fail_rate = (stat['fails'] + stat['skips']) / stat['runs'];
         var idx = Math.floor(fail_rate * 10 / 2); // e.g. failing 3/9 runs is .33, or idx=1
         if (idx == icons.length) {
@@ -46,7 +46,6 @@ $(document).ready(function () {
                     '<td>'+stat['fails']+'</td>' +
                     '<td>'+stat['skips']+'</td>' +
                     '<td data-sort="'+img_sort+'">'+img_tag+'</td>' +
-                    '<td>aadam@redhat.com</td>' +
                   '</tr>'
                 );
             }
