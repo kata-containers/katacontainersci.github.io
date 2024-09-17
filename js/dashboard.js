@@ -67,7 +67,7 @@ $(document).ready(function () {
         var job_urls = '';
         var urls = $(tr).data('urls').split(' ');
         var results = $(tr).data('results').split(' ');
-        var run_nums = $(tr).data('run-nums').split(' ');
+        var run_nums = $(tr).data('run-nums').toString().split(' ');
         var result_to_color = {
             'Pass': '&#128994;', // green
             'Skip': '&#128993;', // yellow
