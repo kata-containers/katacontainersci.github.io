@@ -13,6 +13,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Update dashboard data
+        # Use bash to fail fast:
+        # https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsshell
+        shell: bash
         run: |
           # fetch ci nightly data as temporary file
           node scripts/fetch-ci-nightly-data.js | tee tmp-data.json
