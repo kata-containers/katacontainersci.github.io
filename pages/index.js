@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
+import { Head } from "next/head";
 import { weatherTemplate, getWeatherIndex } from "../components/weatherTemplate";
 
 
@@ -156,6 +157,10 @@ export default function Home() {
 
   return (
     <div className="text-center">
+      <Head>
+        <title>Kata CI Dashboard</title>
+      </Head>
+
       <h1
         className={
           "text-4xl mt-4 mb-0 underline text-inherit hover:text-blue-500"
