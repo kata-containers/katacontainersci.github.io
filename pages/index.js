@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
-import { Head } from "next/head";
+import Head from "next/head";
 import { weatherTemplate, getWeatherIndex } from "../components/weatherTemplate";
 
 
