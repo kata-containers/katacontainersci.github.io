@@ -4,14 +4,12 @@ on:
   schedule:
     - cron: '0 4 * * *'
   workflow_dispatch:
-  on:
   push:
     branches:
       - main
     paths:
       - 'scripts/fetch-ci-nightly-data.js'
       - '.github/workflows/fetch-ci-nightly-data.yaml'
-
 
 jobs:
   fetch-and-commit-data:
