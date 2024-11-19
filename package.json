@@ -15,7 +15,8 @@
     "primereact": "^10.8.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-transition-group": "^4.4.5"
+    "react-transition-group": "^4.4.5",
+    "yaml-loader": "^0.8.1"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.20",
