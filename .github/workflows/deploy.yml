@@ -15,6 +15,9 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+env:
+  NEXT_PUBLIC_BASE_PATH: ${{ vars.NEXT_PUBLIC_BASE_PATH }}
+
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
@@ -76,8 +79,13 @@ jobs:
       - name: Install dependencies
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
 
-      - name: Build with Next.js
+      - name: Build with Next.js (No base path)
+        if: ${{ env.NEXT_PUBLIC_BASE_PATH == '' }}
         run: ${{ steps.detect-package-manager.outputs.runner }} next build
+
+      - name: Build with Next.js (With base path)
+        if: ${{ env.NEXT_PUBLIC_BASE_PATH != '' }}
+        run: NEXT_PUBLIC_BASE_PATH=${{ env.NEXT_PUBLIC_BASE_PATH }} ${{ steps.detect-package-manager.outputs.runner }} next build
 
       - name: Add .nojekyll to out directory
         run: touch out/.nojekyll

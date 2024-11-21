@@ -16,7 +16,7 @@ export default function Home() {
       let data = {};
 
       if (process.env.NODE_ENV === "development") {
-        data = (await import("../job_stats.json")).default;
+        data = (await import("../localData/job_stats.json")).default;
       } else {
         const response = await fetch(
           "https://raw.githubusercontent.com/kata-containers/kata-containers.github.io" +
@@ -130,6 +130,8 @@ export default function Home() {
       onRowToggle={(e) => setExpandedRows(e.data)}
       loading={loading}
       emptyMessage="No results found."
+      sortField="fails"    
+      sortOrder={-1}       
     >
       <Column expander style={{ width: "5rem" }} />
       <Column
@@ -183,8 +185,8 @@ export default function Home() {
           "m-0 h-full p-4 overflow-x-hidden overflow-y-auto bg-surface-ground font-normal text-text-color antialiased select-text"
         }
       >
-        <div>{renderTable()}</div>
         <div className="mt-4 text-lg">Total Rows: {rows.length}</div>
+        <div>{renderTable()}</div>
       </main>
     </div>
   );

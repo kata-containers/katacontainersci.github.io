@@ -19,6 +19,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Update dashboard data
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # Use bash to fail fast:
         # https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsshell
         shell: bash
