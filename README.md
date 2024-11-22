@@ -71,11 +71,21 @@ Follow these steps to set up the development environment for the Kata Containers
 
 3. **Run the development server**:
    Start the Next.js development server with hot-reloading enabled.
+
+   To run the script to fetch the data, a .env file must be created with an access token. This is required to authenticate our calls and increase the rate limit. To get the token, click [here](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+   
+   Create the .env file:
    ```bash
-   node scripts/fetch-ci-nightly-data.js > job_stats.json
-   npm run dev
+    NODE_ENV=development
+    TOKEN=<GITHUB_PAT_OR_OTHER_VALID_TOKEN>
    ```
 
+   Create the folder /localData. Then, run:
+
+   ```bash
+   node scripts/fetch-ci-nightly-data.js > localData/job_stats.json
+   npm run dev    # On Windows, run `npm run win-dev` instead.
+   ```
    The app will be available at [http://localhost:3000](http://localhost:3000).
 
 ### Production
@@ -92,10 +102,11 @@ Follow these steps to set up the development environment for the Kata Containers
    npm start
    ```
 
-### Scripts
-
-- **Fetch CI Nightly Data**: 
-  The `fetch-ci-nightly-data.js` script can be executed manually to pull the latest CI test data from the Kata Containers repository:
-   ```bash
-   node scripts/fetch-ci-nightly-data.js > job_stats.json
-   ```
+### Notes
+In deploy.yml: 
+ ```bash
+env:
+   NEXT_PUBLIC_BASE_PATH: ${{ vars.NEXT_PUBLIC_BASE_PATH }}
+```
+If the variable is undefined, it will use "" for the basePath and assume the site is being served at root.
+This makes it easier for people to fork the repo and deploy with GitHub pages such that they can have a preview for their PR.
