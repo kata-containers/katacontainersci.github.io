@@ -12,6 +12,7 @@ export default function Home() {
   const [jobs, setJobs] = useState([]);
   const [rows, setRows] = useState([]);
   const [expandedRows, setExpandedRows] = useState([]);
+  const [requiredFilter, setRequiredFilter] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -44,17 +45,34 @@ export default function Home() {
     fetchData();
   }, []);
 
+
+  // Filter based on required tag.
+  const filterRequired = (filteredJobs) => {
+    if (requiredFilter){
+      filteredJobs = filteredJobs.filter((job) => job.required);
+    }
+    return filteredJobs;
+  };
+
   useEffect(() => {
     setLoading(true);
 
-    // Create rows to set into table.
-    const rows = jobs.map((job) => ({
-      ...job,
-      weather: getWeatherIndex(job),
-    }));
-    setRows(rows);
+    // Filter based on required tag.
+    let filteredJobs = filterRequired(jobs);
+
+    //Set the rows for the table.
+    setRows(
+      filteredJobs.map((job) => ({
+        name          : job.name,
+        runs          : job.runs,
+        fails         : job.fails,
+        skips         : job.skips,
+        required      : job.required,
+        weather       : getWeatherIndex(job),
+      }))
+    );
     setLoading(false);
-  }, [jobs]);
+  }, [jobs, requiredFilter]);
 
   const toggleRow = (rowData) => {
     const isRowExpanded = expandedRows.includes(rowData);
@@ -68,6 +86,11 @@ export default function Home() {
 
     setExpandedRows(updatedExpandedRows);
   };
+
+  const buttonClass = (active) => `tab md:px-4 px-2 py-2 border-2 
+    ${active ? "border-blue-500 bg-blue-500 text-white" 
+      : "border-gray-300 bg-white hover:bg-gray-100"}`;
+
 
   // Template for rendering the Name column as a clickable item
   const nameTemplate = (rowData) => {
@@ -292,6 +315,11 @@ export default function Home() {
           "m-0 h-full p-4 overflow-x-hidden overflow-y-auto bg-surface-ground font-normal text-text-color antialiased select-text"
         }
       >
+        <button 
+              className={buttonClass(requiredFilter)} 
+              onClick={() => setRequiredFilter(!requiredFilter)}>
+              Required Jobs Only
+        </button>
         <div className="mt-4 text-lg">Total Rows: {rows.length}</div>
         <div>{renderTable()}</div>
       </main>
