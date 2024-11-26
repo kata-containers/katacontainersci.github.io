@@ -12,7 +12,7 @@
 
 mappings:
   # @kata-containers/arch-s390x: BbolroC
-  - regex: ".*s390x.*"
+  - regex: ".*s390x|zvsi.*"
     group: "Arch-s390x"
     owners:
       - fullname: "Hyounggyu Choi"
@@ -74,3 +74,19 @@ mappings:
         slackurl: "https://cloud-native.slack.com/team/U06HXU0312P"
         slack: "Arvind Kumar"
         github: "arvindskumar99"
+
+# Steve and Wainer to maintain the non-tee CoCo jobs
+  - regex: ".*coco-nontee.*"
+    group: "CoCo_non-TEE"
+    owners:
+      - fullname: "Steven Horsman"
+        email: "steven@uk.ibm.com"
+        slackurl: "https://katacontainers.slack.com/team/U020KLK70TA"
+        slack: "Steve Horsman"
+        github: "stevenhorsman"
+
+      - fullname: "Wainer dos Santos Moschetta"
+        email: "wmoschet@redhat.com"
+        slackurl: "https://katacontainers.slack.com/team/U012NV99LPL"
+        slack: "Wainer dos Santos Moschetta"
+        github: "wainersm"
