@@ -75,6 +75,8 @@ export default function Home() {
         skips         : job.skips,
         required      : job.required,
         weather       : getWeatherIndex(job),
+        reruns        : job.reruns,
+        total_reruns  : job.reruns.reduce((total, r) => total + r, 0),
       }))
     );
     setLoading(false);
@@ -94,6 +96,8 @@ export default function Home() {
         skips         : check.skips,
         required      : check.required,
         weather       : getWeatherIndex(check),
+        reruns        : check.reruns,
+        total_reruns  : check.reruns.reduce((total, r) => total + r, 0),
       }))
     );
     setLoading(false);
@@ -137,21 +141,43 @@ export default function Home() {
   };
 
   const maintainRefs = useRef([]);
+  const rerunRefs = useRef([]);
 
   const rowExpansionTemplate = (data) => {
     const job = (display === "nightly" 
       ? jobs
       : checks).find((job) => job.name === data.name);
   
+    if (!job) return (
+      <div className="p-3 bg-gray-100">
+        No data available for this job.
+      </div>
+    ); 
+
     // Prepare run data
-    const runs = [];
-    for (let i = 0; i < job.runs; i++) {
-      runs.push({
-        run_num: job.run_nums[i],
-        result: job.results[i],
-        url: job.urls[i],
-      });
-    }
+    const getRunStatusIcon = (runs) => {
+      if (Array.isArray(runs)) {
+        const allPass = runs.every(run => run === "Pass");
+        const allFail = runs.every(run => run === "Fail");
+
+        if (allPass) {return "✅";}
+        if (allFail) {return "❌";}
+      } else if (runs === "Pass") {
+        return "✅";
+      } else if (runs === "Fail") {
+        return "❌";
+      }
+      return "⚠️";  // return a warning if a mix of results
+    };
+
+    const runEntries = job.run_nums.map((run_num, idx) => ({
+      run_num,
+      result: job.results[idx],
+      reruns: job.reruns[idx],
+      rerun_result: job.rerun_results[idx],
+      url: job.urls[idx],
+      attempt_urls: job.attempt_urls[idx],
+    })); 
 
     // Find maintainers for the given job
     const maintainerData = MaintainerMapping.mappings
@@ -177,28 +203,70 @@ export default function Home() {
       <div key={`${job.name}-runs`} className="p-3 bg-gray-100">
         {/* Display last 10 runs */}
         <div className="flex flex-wrap gap-4">
-          {runs.length > 0 ? (
-            runs.map((run) => {
-              const emoji =
-                run.result === "Pass"
-                  ? "✅"
-                  : run.result === "Fail"
-                  ? "❌"
-                  : "⚠️";
-              return (
-                <span key={`${job.name}-runs-${run.run_num}`}>
-                  <a href={run.url} target="_blank" rel="noopener noreferrer">
-                    {emoji} {run.run_num}
-                  </a>
-                  &nbsp;&nbsp;&nbsp;&nbsp;
-                </span>
-              );
-            })
-          ) : (
-            <div>No Nightly Runs associated with this job</div>
-          )}
-        </div>
+          {runEntries.map(({
+            run_num, 
+            result, 
+            url, 
+            reruns, 
+            rerun_result, 
+            attempt_urls 
+          }, idx) => {
+            const allResults = rerun_result 
+              ?  [result, ...rerun_result] 
+              : [result];
 
+            const runStatuses = allResults.map((result, idx) => 
+              `${allResults.length - idx}. ${result === 'Pass' 
+                ? '✅ Success' 
+                : result === 'Fail' 
+                  ? '❌ Fail' 
+                  : '⚠️ Warning'}`);
+
+            // IDs can't have a '/'...
+            const sanitizedJobName = job.name.replace(/[^a-zA-Z0-9-_]/g, '');
+
+            const badgeReruns = `reruns-${sanitizedJobName}-${run_num}`;
+
+            rerunRefs.current[badgeReruns] = rerunRefs.current[badgeReruns] 
+              || React.createRef();
+
+            return (
+              <div key={run_num} className="flex">
+                <div key={idx} className="flex items-center">
+                  {/* <a href={url} target="_blank" rel="noopener noreferrer"> */}
+                  <a href={attempt_urls[0]} target="_blank" rel="noopener noreferrer">
+                    {getRunStatusIcon(allResults)} {run_num}
+                  </a>
+                </div>
+                {reruns > 0 &&(
+                  <span className="p-overlay-badge">
+                    <sup  className="text-xs font-bold align-super ml-1"
+                          onMouseEnter={(e) => 
+                            rerunRefs.current[badgeReruns].current.toggle(e)}>
+                      {reruns+1}
+                    </sup>
+                    <OverlayPanel ref={rerunRefs.current[badgeReruns]} dismissable
+                    onMouseLeave={(e) => 
+                      rerunRefs.current[badgeReruns].current.toggle(e)}>
+                    <ul className="bg-white border rounded shadow-lg p-2">
+                      {runStatuses.map((status, index) => (
+                        <li key={index} className="p-2 hover:bg-gray-200">
+                          <a 
+                            href={attempt_urls[index] || `${url}/attempts/${index}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer">
+                              {status}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </OverlayPanel>
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
         {/* Display Maintainers, if there's any */}
         <div className="mt-4 p-2 bg-gray-300 w-full">
           {Object.keys(groupedMaintainers).length > 0 ? (
@@ -316,6 +384,7 @@ export default function Home() {
         header = "Runs"
         className="whitespace-nowrap px-2"
         sortable />
+      <Column field = "total_reruns" header = "Reruns" sortable/>
       <Column field = "fails"         header = "Fails"   sortable/>
       <Column field = "skips"         header = "Skips"   sortable/>
       <Column 
@@ -352,6 +421,7 @@ export default function Home() {
         header = "Runs"
         className="whitespace-nowrap px-2"
         sortable />
+      <Column field = "total_reruns" header = "Reruns" sortable/>
       <Column field = "fails"         header = "Fails"   sortable/>
       <Column field = "skips"         header = "Skips"   sortable/>
       <Column 
