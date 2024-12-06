@@ -6,6 +6,7 @@ import { weatherTemplate, getWeatherIndex } from "../components/weatherTemplate"
 import { OverlayPanel } from 'primereact/overlaypanel';
 import MaintainerMapping from "../maintainers.yml";
 import { basePath } from "../next.config.js";
+import { SearchForm } from "../components/searchForm";
 
 
 export default function Home() {
@@ -60,9 +61,9 @@ export default function Home() {
   useEffect(() => {
     const initialDisplay = new URLSearchParams(window.location.search).get("display");
     if (initialDisplay) {
-      if(initialDisplay === "prsingle"){
+      if (initialDisplay === "prsingle"){
         const initialPR = new URLSearchParams(window.location.search).get("pr");
-        if(initialPR){
+        if (initialPR){
           setSelectedPR(initialPR);
         }
       }
@@ -70,10 +71,16 @@ export default function Home() {
     }
   }, []);
 
-  // Filter based on required tag.
-  const filterRequired = (filteredJobs) => {
+  // Filter the checks/jobs.
+  const applyFilters = (filteredJobs) => {
+    // Filter based on the required tag.
     if (requiredFilter){
       filteredJobs = filteredJobs.filter((job) => job.required);
+    }
+    // Filter based on the URL.
+    const val = new URLSearchParams(window.location.search).get("value");
+    if (val){
+      filteredJobs= filteredJobs.filter((job) => job.name.includes(decodeURIComponent(val)));
     }
     return filteredJobs;
   };
@@ -81,7 +88,8 @@ export default function Home() {
   // Filter and set the rows for Nightly view.
   useEffect(() => {
     setLoading(true);
-    let filteredJobs = filterRequired(jobs);
+    let filteredJobs = applyFilters(jobs);
+
     //Set the rows for the table.
     setRowsNightly(
       filteredJobs.map((job) => ({
@@ -101,7 +109,7 @@ export default function Home() {
   // Filter and set the rows for PR Checks view.
   useEffect(() => {
     setLoading(true);
-    let filteredChecks = filterRequired(checks)
+    let filteredChecks = applyFilters(checks)
 
     //Set the rows for the table.
     setRowsPR(
@@ -122,8 +130,7 @@ export default function Home() {
   // Filter and set the rows for Single PR view. 
   useEffect(() => {
     setLoading(true);
-
-    let filteredData = filterRequired(checks);
+    let filteredData = applyFilters(checks);
 
     filteredData = filteredData.map((check) => {
       // Only if the check include the run number, add it to the data. 
@@ -156,8 +163,33 @@ export default function Home() {
     if (view === "prsingle" && pr) {
       path.append("pr", pr);
     }
+    if(window.location.href.includes("value")){
+      const urlParams = new URLSearchParams(window.location.search);
+      path.append("value", urlParams.get("value"));
+    }
+
     // Update the URL without reloading
     window.history.pushState({}, '', `${basePath}/?${path.toString()}`);
+  };
+
+  // Apply search terms to the URL and reload the page.
+  const handleSearch= (e) => {
+    // Prevent the default behavior so that we can keep search terms.
+    e.preventDefault();
+    // Trim value here if desired (not trimmed now)
+    const value = e.target.value.value;
+    if (value) {
+      // Add the display type to the URL.
+      const path = new URLSearchParams();
+      path.append("display", display);
+      if(display === "prsingle" && selectedPR){
+        path.append("pr", selectedPR);
+      }
+
+      // Add the search term from the form and redirect.
+      path.append("value", value);
+      window.location.assign(`${basePath}/?${path.toString()}`);
+    }
   };
 
   const toggleRow = (rowData) => {
@@ -418,8 +450,8 @@ export default function Home() {
       onRowToggle={(e) => setExpandedRows(e.data)}
       loading={loading}
       emptyMessage="No results found."
-      sortField="fails"    
-      sortOrder={-1}       
+      sortField="fails"
+      sortOrder={-1}
     >
       <Column expander/>
       <Column
@@ -593,14 +625,18 @@ export default function Home() {
         </div>
       </div>
 
-      
-      <div className={"m-0 h-full px-4 overflow-x-hidden overflow-y-auto \
-                        bg-surface-ground antialiased select-text"}>
-        <button 
+      <div className="flex flex-row justify-end mx-4 space-x-4">
+      <button 
           className={buttonClass(requiredFilter)} 
           onClick={() => setRequiredFilter(!requiredFilter)}>
           Required Jobs Only
         </button>
+        <SearchForm handleSearch={handleSearch} />
+      </div>
+
+      
+      <div className={"m-0 h-full px-4 overflow-x-hidden overflow-y-auto \
+                        bg-surface-ground antialiased select-text"}>
         <div className="mt-4 text-center md:text-lg text-base">
         Total Rows: {display === "prsingle" ? rowsSingle.length : display === "prchecks" ? rowsPR.length : rowsNightly.length}
         </div>
