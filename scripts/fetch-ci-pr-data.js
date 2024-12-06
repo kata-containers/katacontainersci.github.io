@@ -62,6 +62,11 @@ async function fetch_url(url) {
   return await json;
 }
 
+// Extract list of required jobs (i.e. main branch details: protection: required_status_checks: contexts)
+function get_required_jobs(main_branch) {
+  return main_branch["protection"]["required_status_checks"]["contexts"];
+}
+
 
 // Perform a github API request for a list of commits for a PR (takes in the PR's head commit SHA)
 function get_check_data(pr) {
@@ -76,7 +81,8 @@ function get_check_data(pr) {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch check data: ${response.status}`);
+      console.error(`Failed to fetch check data:  ${response.status}: ` +
+                                                 `${response.statusText}`);
     }
 
     const json = await response.json();
@@ -92,7 +98,8 @@ function get_check_data(pr) {
       for (const check of checks_request["check_runs"]) {
         prs_with_check_data["checks"].push({
             name: check["name"],
-            conclusion: check["conclusion"]
+            conclusion: check["conclusion"],
+            attempt_urls: check["html_url"],  // URL to an attempt 
         });
       }
       if (p * results_per_request >= checks_request["total_count"]) {
@@ -112,54 +119,84 @@ function get_check_data(pr) {
     number: pr["number"],  // PR number (used as PR id); displayed on dashboard
     commit_sha: pr["head"]["sha"],  // For getting checks run on PR branch
     // commit_sha: pr["merge_commit_sha"],  // For getting checks run on main branch after merge
-    // NOTE: using for now b/c we'll be linking to the PR page, where these checks are listed...
     checks: [],  // will be populated later with fetch_checks
   };
 
   return fetch_checks(1);
 }
 
-
-// Extract list of required jobs (i.e. main branch details: protection: required_status_checks: contexts)
-function get_required_jobs(main_branch) {
-  return main_branch["protection"]["required_status_checks"]["contexts"];
-}
-
-
 // Calculate and return check stats across all runs
 function compute_check_stats(prs_with_check_data, required_jobs) {
-  var check_stats = {};
+  const check_stats = {};
   for (const pr of prs_with_check_data) {
+    const check_reruns = {};
+    const check_rerun_results = {};
+    const check__urls = {};
+
     for (const check of pr["checks"]) {
-        if (!(check["name"] in check_stats)) {
-            check_stats[check["name"]] = {
-                runs: 0,     // e.g. 10, if it ran 10 times
-                fails: 0,    // e.g. 3, if it failed 3 out of 10 times
-                skips: 0,    // e.g. 7, if it got skipped the other 7 times
-                urls: [],    // list of PR URLs that this check is associated with
-                results: [], // list of check statuses for the PRs in which the check was run
-                run_nums: [],    // list of PR numbers that this check is associated with
-            };
+      if (!(check["name"] in check_stats)) {
+        check_stats[check["name"]] = {
+          runs: 0,            // e.g. 10, if it ran 10 times
+          fails: 0,           // e.g. 3, if it failed 3 out of 10 times
+          skips: 0,           // e.g. 7, if it got skipped the other 7 times
+          urls: [],           // ordered list of URLs to each PR
+          results: [],        // list of check statuses for the PRs in which the check was run
+          run_nums: [],       // list of PR numbers that this check is associated with
+          reruns: [],         // the total number of times the test was rerun
+          rerun_results: [],  // an array of strings, e.g. 'Pass', 'Fail', for reruns
+          attempt_urls: [],   // ordered list of URLs to each job in a specific PR
+        };
+      }
+      const check_stat = check_stats[check["name"]];
+      check_stat["required"] = required_jobs.includes(check["name"]);
+
+      // If run number is already found, it's a rerun
+      if (check_stat["run_nums"].includes(pr["number"])) {
+        // Increment rerun count for the job. 
+        check_reruns[check["name"]] += 1;
+        if (check["conclusion"] != "success") {
+          if (check["conclusion"] == "skipped") {
+              check_stat["skips"] += 1;
+              check_rerun_results[check["name"]].push("Skip");
+          } else {
+              // failed or cancelled
+              check_stat["fails"] += 1;
+              check_rerun_results[check["name"]].push("Fail");
+          }
+        } else {
+          check_rerun_results[check["name"]].push("Pass");
         }
-        if ((check["name"] in check_stats) && !check_stats[check["name"]]["run_nums"].includes(pr["number"])) {
-            var check_stat = check_stats[check["name"]];
-            check_stat["runs"] += 1;
-            check_stat["urls"].push(pr["html_url"])
-            check_stat["run_nums"].push(pr["number"])
-            if (check["conclusion"] != "success") {
-            if (check["conclusion"] == "skipped") {
-                check_stat["skips"] += 1;
-                check_stat["results"].push("Skip");
-            } else {
-                // failed or cancelled
-                check_stat["fails"] += 1;
-                check_stat["results"].push("Fail");
-            }
-            } else {
-            check_stat["results"].push("Pass");
-            }
-            check_stat["required"] = required_jobs.includes(check["name"]);
+      }else{
+        // Initilize structures if not initialized before.
+        check_reruns[check["name"]] ??= 0;
+        check_rerun_results[check["name"]] ??= [];
+        check__urls[check["name"]] ??= [];
+        
+        check_stat["run_nums"].push(pr["number"]);
+        check_stat["runs"] += 1;
+        check_stat["urls"].push(pr["html_url"] + "/checks")
+
+        if (check["conclusion"] != "success") {
+          if (check["conclusion"] == "skipped") {
+              check_stat["skips"] += 1;
+              check_stat["results"].push("Skip");
+          } else {
+              // failed or cancelled
+              check_stat["fails"] += 1;
+              check_stat["results"].push("Fail");
+          }
+        } else {
+          check_stat["results"].push("Pass");
         }
+      }
+      check__urls[check["name"]].push(check["attempt_urls"]);
+    }
+    for (const check in check_reruns) { 
+      if (check_stats[check]) { 
+        check_stats[check]["reruns"].push(check_reruns[check]);
+        check_stats[check]["rerun_results"].push(check_rerun_results[check]);
+        check_stats[check]["attempt_urls"].push(check__urls[check]);
+      }    
     }
   }
   return check_stats;
