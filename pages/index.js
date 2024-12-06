@@ -5,17 +5,20 @@ import Head from "next/head";
 import { weatherTemplate, getWeatherIndex } from "../components/weatherTemplate";
 import { OverlayPanel } from 'primereact/overlaypanel';
 import MaintainerMapping from "../maintainers.yml";
+import { basePath } from "../next.config.js";
 
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
   const [checks, setChecks] = useState([]);
   const [jobs, setJobs] = useState([]);
-  const [rowsPR,        setRowsPR]        = useState([]);
-  const [rowsNightly,   setRowsNightly]   = useState([]);
+  const [rowsSingle, setRowsSingle] = useState([]);
+  const [rowsPR, setRowsPR] = useState([]);
+  const [rowsNightly, setRowsNightly] = useState([]);
   const [expandedRows, setExpandedRows] = useState([]);
   const [requiredFilter, setRequiredFilter] = useState(false);
-  const [display,       setDisplay]       = useState("nightly");
+  const [display, setDisplay] = useState("nightly");
+  const [selectedPR, setSelectedPR] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -53,6 +56,19 @@ export default function Home() {
     fetchData();
   }, []);
 
+  // Set the display based on the URL.
+  useEffect(() => {
+    const initialDisplay = new URLSearchParams(window.location.search).get("display");
+    if (initialDisplay) {
+      if(initialDisplay === "prsingle"){
+        const initialPR = new URLSearchParams(window.location.search).get("pr");
+        if(initialPR){
+          setSelectedPR(initialPR);
+        }
+      }
+      setDisplay(initialDisplay);
+    }
+  }, []);
 
   // Filter based on required tag.
   const filterRequired = (filteredJobs) => {
@@ -103,11 +119,46 @@ export default function Home() {
     setLoading(false);
   }, [checks, requiredFilter]);
 
+  // Filter and set the rows for Single PR view. 
+  useEffect(() => {
+    setLoading(true);
+
+    let filteredData = filterRequired(checks);
+
+    filteredData = filteredData.map((check) => {
+      // Only if the check include the run number, add it to the data. 
+      const index = check.run_nums.indexOf(Number(selectedPR));
+      return index !== -1
+        ? {
+            name: check.name,
+            required: check.required,
+            result: check.results[index],
+            runs: check.reruns[index] + 1,
+          }
+        : null;
+    }).filter(Boolean); 
+
+    setRowsSingle(filteredData);
+    setLoading(false);
+  }, [checks, selectedPR, requiredFilter]);
+
   // Close all rows on view switch. 
   // Needed because if view is switched, breaks expanded row toggling.
   useEffect(() => {
     setExpandedRows([])
   }, [display]); 
+
+  // Update the URL on display change
+  const updateUrl = (view, pr) => {
+    const path = new URLSearchParams();
+    path.append("display", view);
+    // Add PR number Single PR view and a PR is provided
+    if (view === "prsingle" && pr) {
+      path.append("pr", pr);
+    }
+    // Update the URL without reloading
+    window.history.pushState({}, '', `${basePath}/?${path.toString()}`);
+  };
 
   const toggleRow = (rowData) => {
     const isRowExpanded = expandedRows.includes(rowData);
@@ -432,6 +483,46 @@ export default function Home() {
     </DataTable>
   );
 
+  // Make a list of all unique run numbers in the check data.
+  const runNumOptions = [...new Set(checks.flatMap(check => check.run_nums))].sort((a, b) => b - a);
+
+  // Render table for prsingle view 
+  const renderSingleViewTable = () => (
+    <DataTable
+      value={rowsSingle}
+      expandedRows={expandedRows}
+      stripedRows
+      rowExpansionTemplate={rowExpansionTemplate}
+      onRowToggle={(e) => setExpandedRows(e.data)}
+      loading={loading}
+      emptyMessage={selectedPR.length == 0 ? "Select a Pull Request above." : "No results found."}
+    >
+      <Column expander />
+      <Column
+        field="name"
+        header="Name"
+        body={nameTemplate} 
+        className="select-all"
+        sortable
+      />
+      <Column
+        field="required"
+        header="Required"
+        sortable
+      />
+      <Column
+        field="result"
+        header="Result"
+        sortable
+      />
+      <Column
+        field="runs"
+        header="Total Runs"
+        sortable
+      />
+    </DataTable>
+  );
+
   return (
     <div className="text-center">
       <Head>
@@ -457,21 +548,49 @@ export default function Home() {
       </h1>
       <div className="flex flex-wrap mt-2 p-4 md:text-base text-xs">
         <div className="space-x-2 pb-2 pr-3 mx-auto flex">
-          <button 
-            className={tabClass(display === "nightly")}
-            onClick={() => {
-              setDisplay("nightly");
-            }}>
-            Nightly Jobs
-          </button>
-          <button 
-            className={tabClass(display === "prchecks")}
-            onClick={() => {
-              setDisplay("prchecks");
-            }}>
-            PR Checks
-          </button>
-          </div>
+        <button 
+              className={tabClass(display === "nightly")}
+              onClick={() => {
+                setDisplay("nightly");
+                updateUrl("nightly");
+
+              }}>
+              Nightly Jobs
+            </button>
+            <button 
+              className={tabClass(display === "prchecks")}
+              onClick={() => {
+                setDisplay("prchecks");
+                updateUrl("prchecks");
+              }}>
+              PR Checks
+            </button>
+            <button 
+              className={tabClass(display === "prsingle")}
+              onClick={() => {
+                setDisplay("prsingle");
+                updateUrl("prsingle", selectedPR);
+              }}>
+              Single PR
+            </button>
+            {display === "prsingle" && ( 
+              <div className="bg-blue-500 p-2 rounded-xl h-fit">
+                <select 
+                  id="selectedrun"
+                  className="px-1 h-fit rounded-lg"
+                  onChange={(e) => {
+                      setSelectedPR(e.target.value);
+                      updateUrl("prsingle", e.target.value);
+                    }}
+                  value={selectedPR} >
+                    <option value="">Select PR</option>
+                    {runNumOptions.map(num => (
+                      <option key={num} value={num}>#{num}</option>
+                    ))}
+                </select>
+              </div>
+            )}
+        </div>
       </div>
 
       
@@ -483,9 +602,9 @@ export default function Home() {
           Required Jobs Only
         </button>
         <div className="mt-4 text-center md:text-lg text-base">
-          Total Rows: {display === "prchecks" ? rowsPR.length : rowsNightly.length}
+        Total Rows: {display === "prsingle" ? rowsSingle.length : display === "prchecks" ? rowsPR.length : rowsNightly.length}
         </div>
-        <div>{display === "prchecks" ? renderPRTable() : renderNightlyTable()}</div>
+        <div>{display === "prsingle" ? renderSingleViewTable() : display === "prchecks" ? renderPRTable() : renderNightlyTable()}</div>
       </div>
     </div>
   );
